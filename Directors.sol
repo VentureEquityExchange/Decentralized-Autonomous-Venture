@@ -47,7 +47,7 @@ contract Directors is Shareholders {
         
     }
     
-    function addDirectors(address[] ds) isDAV returns (bool){
+    function addDirectors(address[] ds) isDAV internal returns (bool){
         if(ds.length == 0)
             return false;
         for(uint i = 0; i < ds.length; i++)

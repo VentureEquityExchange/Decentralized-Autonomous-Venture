@@ -27,13 +27,14 @@ contract Vesting {
     
     function Vesting(){}
     
-    function NewSchedule(address _account, uint _initial, uint _full, uint _period, uint _payment) returns (bool){
+    function NewSchedule(address _account, uint _initial, uint _full, uint _period, uint _payment) internal returns (bool){
         beneficiaries[_account].account = _account;
         beneficiaries[_account].initial = _initial;
         beneficiaries[_account].current = beneficiaries[_account].initial;
         beneficiaries[_account].full = _full;
         beneficiaries[_account].period = _period;
         beneficiaries[_account].payment = _payment;
+        return true;
     }
     
     function Vest(address _account) returns (bool){

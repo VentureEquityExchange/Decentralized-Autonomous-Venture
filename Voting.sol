@@ -26,6 +26,8 @@ contract Voting is Bylaws {
         uint dateProposed;
         uint endDate;
         string proposal;
+        address[] accounts;
+        bytes32 data; // sha3(arb. byte length)
         Vote[] votes;
         bool EOR;
         bool result;
@@ -60,7 +62,7 @@ contract Voting is Bylaws {
     
     function vote(uint r, address _voter, bool _decision) resComplete(r) internal returns (bool){
         resolutions[r].votes.push(Vote({voter: _voter, decision: _decision, dateVoted: now}));
-        returns true;
+        return true;
     }
     
     modifier resComplete(uint r){ if(resolutions[r].closed == true) throw; _ }
