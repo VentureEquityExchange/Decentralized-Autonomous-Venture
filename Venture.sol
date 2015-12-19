@@ -12,12 +12,17 @@ THE SOFTWARE.
 */
 
 
-
+import "Bylaws.sol";
 import "Directors.sol";
 import "Exchange.sol";
 import "Shareholders.sol";
 import "Directorate.sol";
+import "Voting.sol";
+import "Vesting.sol";
 
 contract Venture is Directorate {
-    function Venture(){}
+    function Venture(){
+        /*Reserved High-level actions*/
+        
+    }
 }

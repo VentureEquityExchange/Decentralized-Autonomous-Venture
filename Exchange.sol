@@ -32,12 +32,13 @@ contract Exchange is Shareholders {
     uint[] internal asksSorted;
     uint[] internal askMatches;
     uint[] internal askQuantities;
+    uint[] internal openAsks;
     
     Bid[] public Bids;
     uint[] internal bidsSorted;
     uint[] internal bidMatches;
     uint[] internal bidQuantities;
-    
+    uint[] internal openBids;
     // modifier validBid(address _buyer, uint _shares, uint _price) {
     //     if(_buyer == 0x0 || _shares == 0 || _price == 0 || _buyer.balance < _price*_shares)
     //         throw;
@@ -54,6 +55,38 @@ contract Exchange is Shareholders {
         if(_seller == 0x0 || _shares == 0 || _price == 0 || shareholders[_seller].sharesHeld < _shares)
             return false;
         return true;
+    }
+    
+    function OpenAsks() public returns (uint[]){
+        openAsks.length = 0;
+        uint len = SortAsks().length;
+        for(uint i = 0; i < len; i++)
+            if(Asks[i].seller == msg.sender)
+                openAsks.push(i);
+        return openAsks;
+    }
+    
+    function OpenBids() public returns (uint[]){
+        openBids.length = 0;
+        uint len = SortBids().length;
+        for(uint i = 0; i < len; i++)
+            if(Bids[i].buyer == msg.sender)
+                openBids.push(i);
+        return openBids;
+    }
+    
+    function DeleteAsk(uint askDate) public returns (bool){
+        uint len = SortAsks().length;
+        for(uint i = 0; i < len; i++)
+            if(Asks[i].seller == msg.sender && Asks[i].date == askDate)
+                delete Asks[i];
+    }
+    
+    function DeleteBid(uint bidDate) public returns (bool){
+        uint len = SortBids().length;
+        for(uint i = 0; i < len; i++)
+            if(Bids[i].buyer == msg.sender && Bids[i].date == bidDate)
+                delete Bids[i];
     }
     
     function NewAsk(address _seller, uint _shares, uint _price) internal returns (bool){
