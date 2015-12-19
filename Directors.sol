@@ -24,7 +24,7 @@ contract Directors is Shareholders {
     mapping(address => Director) public directors;
     address public DAV;
     address public Founder;
-    uint public initialShares = 1000000;
+    uint public internalShares = 1000000;
     
     event directorsAmended(string _n, address _a, bytes32 _r);
     
@@ -34,7 +34,8 @@ contract Directors is Shareholders {
         directors[DAV].name = "DAV";
         directors[DAV].account = DAV;
         directors[DAV].role = "DAV";
-        shareholders[DAV].sharesHeld = initialShares; 
+        shareholders[DAV].account = DAV;
+        shareholders[DAV].sharesHeld = internalShares; 
         // Initial value of DAV shares
         
         

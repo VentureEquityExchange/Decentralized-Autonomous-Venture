@@ -24,9 +24,8 @@ contract Voting is Bylaws {
     
     struct Resolution {
         uint dateProposed;
-        uint term;
-        uint dateEnded;
-        bytes32 proposal;
+        uint endDate;
+        string proposal;
         Vote[] votes;
         bool EOR;
         bool result;
@@ -34,36 +33,34 @@ contract Voting is Bylaws {
     }
     
     mapping(uint => Resolution) public resolutions;
-    Resolution[] internal openResolutions;
-    Resolution[] public allResolutions;
+    uint[] internal openResolutions;
+    uint[] public allResolutions;
     
     
     
-    function newResolution(bytes32 proposal, bool _EOR) ORL internal returns (uint256){
-        if(proposal == "")
-            throw;
+    function newResolution(string proposal, bool _EOR) ORL internal returns (bool){
+        // if(proposal == "")
+        //     throw;
         uint dateProposed = now;
-        Resolution memory r;
-        r.dateProposed = dateProposed;
-        r.proposal = proposal;
-        r.EOR = _EOR;
-        r.closed = false;
+        resolutions[dateProposed].dateProposed = dateProposed;
+        resolutions[dateProposed].proposal = proposal;
+        resolutions[dateProposed].EOR = _EOR;
+        resolutions[dateProposed].closed = false;
+        resolutions[dateProposed].endDate = dateProposed + 2 weeks;
         
-        resolutions[dateProposed] = r;
-        allResolutions.push(r);
-        openResolutions.push(r);
-        
+        allResolutions.push(dateProposed);
+        openResolutions.push(dateProposed);
+        return true;
     }
     
-    function getResolution(uint r) isOpen(r) public returns(bytes32, bool){
-        bytes32 proposal = resolutions[r].proposal;
+    function getResolution(uint r) isOpen(r) public returns(string, bool){
+        string proposal = resolutions[r].proposal;
         bool result = resolutions[r].result;
-        
-        
     }
     
     function vote(uint r, address _voter, bool _decision) resComplete(r) internal returns (bool){
         resolutions[r].votes.push(Vote({voter: _voter, decision: _decision, dateVoted: now}));
+        returns true;
     }
     
     modifier resComplete(uint r){ if(resolutions[r].closed == true) throw; _ }

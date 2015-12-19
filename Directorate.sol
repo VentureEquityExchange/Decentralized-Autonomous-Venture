@@ -22,5 +22,20 @@ import "Vesting.sol";
 contract Directorate is Bylaws, Shareholders, Exchange, Directors, Voting, Vesting {
     function Directorate(){}
     
+    function AmendBylaws(uint ORT, uint EORT, uint ORL, bool equalWeight) isDAV internal returns(bool){
+        bylaws.ORT = ORT;
+        bylaws.EORT = EORT;
+        bylaws.ORL = ORL;
+        bylaws.equalWeighted = equalWeight;
+        return true;
+    }
+    
+    function NewVote(uint r, bool d) isDirector public returns (bool){
+        return vote(r, msg.sender, d);
+    }
+    
+    function NewResolution(string p, bool EOR) isDirector public returns(bool){
+        return newResolution(p, EOR);
+    }
     
 }
