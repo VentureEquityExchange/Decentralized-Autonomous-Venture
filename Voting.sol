@@ -65,6 +65,17 @@ contract Voting is Bylaws {
         return true;
     }
     
+    function countVotes(uint r) public returns(uint total, uint y, uint n){
+        uint yes;
+        uint no;
+        uint len = resolutions[r].votes.length;
+        for(uint i = 0; i < len; i++)
+            if(resolutions[r].votes[i].decision == true)
+                yes += 1;
+            no += 1;
+        return (len, yes, no);
+    }
+    
     modifier resComplete(uint r){ if(resolutions[r].closed == true) throw; _ }
     modifier isOpen(uint r) { if(resolutions[r].closed == false) throw; _ }
     modifier ORL { if(bylaws.ORL <= openResolutions.length) throw; _ }

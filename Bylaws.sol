@@ -54,8 +54,8 @@ contract Bylaws {
     ByLawsConfig public bylaws;
     
     function Bylaws(){
-        bylaws.ORT = 67/100;
-        bylaws.EORT = 90/100;
+        bylaws.ORT = 67;
+        bylaws.EORT = 90;
         bylaws.ORL = 5;
         bylaws.equalWeighted = true;
     }

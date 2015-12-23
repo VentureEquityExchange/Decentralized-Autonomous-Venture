@@ -117,7 +117,7 @@ contract Exchange is Shareholders {
     function SubmitAsk(uint _shares, uint _price) returns (bool){
         address _seller = msg.sender;
         if(!ValidAsk(_seller, _shares, _price))
-            return false;
+            throw;
         if(AskInMarket(_price))
             return ExecuteAsk(_seller, _shares, _price);
         
@@ -128,9 +128,9 @@ contract Exchange is Shareholders {
     function SubmitBid(uint _price) returns (bool){
         address _buyer = msg.sender;
         uint _order = msg.value; // order is price*shares sent by the bidder in msg.value;
-        uint _shares = (_order / _price); // my assumption is that order / price (ex 100/5 = 20) is having an issue
+        uint _shares = (_order / _price); 
         if(!ValidBid(_buyer, _shares, _price))
-            return false;
+            throw;
         if(BidInMarket(_price))
             return ExecuteBid(_order, _buyer, _shares, _price);
         
