@@ -19,12 +19,15 @@ contract Directors is Shareholders {
         string name;
         address account;
         bytes32 role;
+        bool active;
     }
     
     mapping(address => Director) public directors;
+    address[] internal currentDirectors;
+    address[] public allDirectors;
+    
     address public DAV;
     address public Founder;
-    uint public internalShares = 1000000;
     
     event directorsAmended(string _n, address _a, bytes32 _r);
     
@@ -34,8 +37,12 @@ contract Directors is Shareholders {
         directors[DAV].name = "DAV";
         directors[DAV].account = DAV;
         directors[DAV].role = "DAV";
+        directors[DAV].active = true;
+        allDirectors.push(DAV);
+        
         shareholders[DAV].account = DAV;
         shareholders[DAV].sharesHeld = internalShares; 
+        allShareholders.push(DAV);
         // Initial value of DAV shares
         
         
@@ -44,6 +51,9 @@ contract Directors is Shareholders {
         directors[Founder].name = "Founder";
         directors[Founder].account = Founder;
         directors[Founder].role = "founder";
+        directors[Founder].active = true;
+        allDirectors.push(Founder);
+        
         
     }
     
@@ -52,6 +62,20 @@ contract Directors is Shareholders {
             return false;
         for(uint i = 0; i < ds.length; i++)
             directors[ds[i]].account = ds[i];
+        return true;
+    }
+    
+    function getCurrentDirectors() public returns(address[]){
+        currentDirectors.length = 0;
+        uint len = allDirectors.length;
+        for(uint i = 0; i < len;  i++)
+            if(directors[allDirectors[i]].active == true)
+                currentDirectors.push(allDirectors[i]);
+        return currentDirectors;
+    }
+    
+    function removeDirector(address _account) isDAV internal returns (bool){
+        directors[_account].active = false;
         return true;
     }
     
@@ -65,20 +89,7 @@ contract Directors is Shareholders {
         return true;
     }
     
-    function transferOwnership(uint amount, address from, address to) isDAV internal returns (bool){
-        if(shareholders[from].sharesHeld < amount)
-            throw;
-        shareholders[from].sharesHeld -= amount;
-        shareholders[to].sharesHeld += amount;
-        return true;
-    }
-    
-    function getOwnership(address director) public returns (uint){
-        return shareholders[director].sharesHeld;
-    }
-    
-    
-    modifier isDirector { if (directors[msg.sender].account != 0x0) _ }
+    modifier isDirector { if (directors[msg.sender].account != 0x0 && directors[msg.sender].active != false) _ }
     modifier hasRole(bytes32 role) { if (directors[msg.sender].role == role) _ }
     modifier isFounder { if (directors[msg.sender].account == Founder) _ }
     modifier isDAV { if (directors[msg.sender].account == DAV) _ }

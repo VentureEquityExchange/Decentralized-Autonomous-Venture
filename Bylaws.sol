@@ -54,11 +54,32 @@ contract Bylaws {
     ByLawsConfig public bylaws;
     
     function Bylaws(){
-        bylaws.ORT = 67;
-        bylaws.EORT = 90;
+        bylaws.ORT = (100 * 67/100); // 67%
+        bylaws.EORT = (100 * 90/100); // 90%
         bylaws.ORL = 5;
         bylaws.equalWeighted = true;
     }
+    
+    function setORT(uint percentage) internal returns (bool){
+        bylaws.ORT = (100 * percentage / 100);
+        return true;
+    }
+    
+    function setEORT(uint percentage) internal returns (bool){
+        bylaws.EORT = (100 * percentage / 100);
+        return true;
+    }
+    
+    function setWeighting(bool equalWeighted) internal returns (bool){
+        bylaws.equalWeighted = equalWeighted;
+        return true;
+    }
+    
+    function setORL(uint limit) internal returns (bool){
+        bylaws.ORL = limit;
+        return true;
+    }
+    
 }
 
 

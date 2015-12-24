@@ -20,12 +20,35 @@ contract Shareholders {
     }
     
     mapping(address => Shareholder) public shareholders;
+    address[] internal currentShareholders;
+    address[] public allShareholders;
     
-    function Shareholders(){
+    uint public internalShares = 1000000;
+    
+    function Shareholders(){}
+    
+    function getSharesHeld(address _a) returns (uint){
+        return shareholders[_a].sharesHeld;
     }
     
-    function getShares(address _a) returns (uint){
-        return shareholders[_a].sharesHeld;
+    function getCurrentShareholders() public returns (address[]){
+        currentShareholders.length = 0;
+        uint len = allShareholders.length;
+        for(uint i = 0; i < len; i++)
+            if(shareholders[allShareholders[i]].sharesHeld > 0)
+                currentShareholders.push(allShareholders[i]);
+        return currentShareholders;
+    }
+    
+    function transferOwnership(uint amount, address from, address to) public returns (bool){
+        if(shareholders[from].sharesHeld < amount)
+            throw;
+        shareholders[from].sharesHeld -= amount;
+        shareholders[to].sharesHeld += amount;
+        if(shareholders[to].account == 0x0)
+            shareholders[to].account = to;
+            allShareholders.push(to);
+        return true;
     }
     
 }
