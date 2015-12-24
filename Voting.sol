@@ -13,6 +13,7 @@ THE SOFTWARE.
 
 import "Bylaws.sol";
 import "Directors.sol";
+import "Shareholders.sol";
 
 contract Voting is Bylaws, Directors {
     
@@ -65,32 +66,60 @@ contract Voting is Bylaws, Directors {
     function vote(uint r, address _voter, bool _decision) resComplete(r) public returns (bool){
         resolutions[r].votes.push(Vote({voter: _voter, decision: _decision, dateVoted: now}));
         // calculate if resolution has passed.
-        
-        
-        
         return true;
     }
     
-    function Resolved(uint r) public returns (bool){
-        if(resolutions[r].closed == true)
+    function ResolutionResult(uint r) internal returns (bool){
+        uint totalVotes;
+        uint yesVotes;
+        uint noVotes;
+        (totalVotes, yesVotes, noVotes) = countVotes(r);
+        
+        uint yT = (100 * yesVotes/totalVotes);
+        uint nT = (100 * noVotes/totalVotes);
+        if(yT > nT)
             return true;
+        return false;
+    }
+    
+    function Resolve(uint r) public returns(bool){
         // calculate status of voting
         uint totalVotes;
         uint yesVotes;
         uint noVotes;
         (totalVotes, yesVotes, noVotes) = countVotes(r);
         
+        uint totalVoters = numSubscribedVoters();
+        uint percentComplete = (100 * totalVotes/totalVoters);
         
+        if(resolutions[r].EOR == true)
+            if( percentComplete > bylaws.EORT)
+                resolutions[r].result = ResolutionResult(r);
+                resolutions[r].closed = true;
+                resolutions[r].endDate = now;
+                return true;
+            return false;
         
-            
+        if(percentComplete > bylaws.ORT)
+            resolutions[r].result = ResolutionResult(r);
+            resolutions[r].closed = true;
+            resolutions[r].endDate = now;
+            return true;
+        return false;
     }
     
-    function numSubscribedVoters(uint r) public returns(uint){
+    function Resolved(uint r) public returns (bool){
+        if(resolutions[r].closed == true)
+            return true;
+        return Resolve(r);
+    }
+    
+    function numSubscribedVoters() public returns(uint){
         if(bylaws.equalWeighted == true)
             // if equal weighted, only directors get voting priveleges
             // if share weighted, shareholders get voting priveleges based on weight
-            return currentDirectors.length;
-        return currentShareholders.length;
+            return currentDirectors.length - 1; // subtract DAV from directors;
+        return currentShareholders.length - 1; // subtract DAV from shareholders;
     }
     
     function voteProgress(uint r, uint _total, uint _y, uint _n) public returns (uint){
