@@ -51,4 +51,5 @@ contract Shareholders {
         return true;
     }
     
+    modifier isShareholder { if (shareholders[msg.sender].account != 0x0 && shareholders[msg.sender].sharesHeld == 0) throw; _ }
 }

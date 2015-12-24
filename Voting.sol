@@ -37,7 +37,7 @@ contract Voting is Bylaws, Directors {
     }
     
     mapping(uint => Resolution) public resolutions;
-    uint[] public openResolutions;
+    uint[] internal openResolutions;
     uint[] public allResolutions;
     
     
@@ -55,32 +55,29 @@ contract Voting is Bylaws, Directors {
         
         Resolution r = resolutions[dateProposed];
         allResolutions.push(r.dateProposed);
-        openResolutions.push(r.dateProposed);
         return true;
+    }
+    
+    function getOpenResolutions() public returns (uint[]){
+        openResolutions.length = 0;
+        uint len = allResolutions.length;
+        for(uint i = 0; i < len; i++)
+            if(resolutions[allResolutions[i]].closed == false)
+                openResolutions.push(allResolutions[i]);
+        return openResolutions;
     }
     
     function getResolution(uint r) isOpen(r) public returns(string proposal, bool closed, bool result){
         return (resolutions[r].proposal, resolutions[r].closed, resolutions[r].result);
     }
     
-    function vote(uint r, address _voter, bool _decision) resComplete(r) public returns (bool){
-        resolutions[r].votes.push(Vote({voter: _voter, decision: _decision, dateVoted: now}));
+    function vote(uint r, bool _decision) resComplete(r) isDirector isShareholder public returns (bool){
+        resolutions[r].votes.push(Vote({voter: msg.sender, decision: _decision, dateVoted: now}));
         // calculate if resolution has passed.
         return true;
     }
     
-    function ResolutionResult(uint r) internal returns (bool){
-        uint totalVotes;
-        uint yesVotes;
-        uint noVotes;
-        (totalVotes, yesVotes, noVotes) = countVotes(r);
-        
-        uint yT = (100 * yesVotes/totalVotes);
-        uint nT = (100 * noVotes/totalVotes);
-        if(yT > nT)
-            return true;
-        return false;
-    }
+    
     
     function Resolve(uint r) public returns(bool){
         // calculate status of voting
@@ -92,16 +89,22 @@ contract Voting is Bylaws, Directors {
         uint totalVoters = numSubscribedVoters();
         uint percentComplete = (100 * totalVotes/totalVoters);
         
+        if(resolutions[r].endDate < now)
+            resolutions[r].result = (yesVotes > noVotes);
+            resolutions[r].closed = true;
+            resolutions[r].endDate = now;
+            return true;
+        
         if(resolutions[r].EOR == true)
             if( percentComplete > bylaws.EORT)
-                resolutions[r].result = ResolutionResult(r);
+                resolutions[r].result = (yesVotes > noVotes);
                 resolutions[r].closed = true;
                 resolutions[r].endDate = now;
                 return true;
             return false;
         
         if(percentComplete > bylaws.ORT)
-            resolutions[r].result = ResolutionResult(r);
+            resolutions[r].result = (yesVotes > noVotes);
             resolutions[r].closed = true;
             resolutions[r].endDate = now;
             return true;
