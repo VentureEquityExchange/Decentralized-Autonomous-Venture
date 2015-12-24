@@ -71,13 +71,20 @@ contract Voting is Bylaws, Directors {
         return (resolutions[r].proposal, resolutions[r].closed, resolutions[r].result);
     }
     
-    function vote(uint r, bool _decision) resComplete(r) isDirector isShareholder public returns (bool){
+    function vote(uint r, bool _decision) resComplete(r) isDirector public returns (bool){
         resolutions[r].votes.push(Vote({voter: msg.sender, decision: _decision, dateVoted: now}));
         // calculate if resolution has passed.
         return true;
     }
     
-    
+    function CheckCount(uint r) public returns (bool){
+        uint totalVotes;
+        uint yesVotes;
+        uint noVotes;
+        (totalVotes, yesVotes, noVotes) = countVotes(r);
+        
+        return (yesVotes > noVotes);
+    }
     
     function Resolve(uint r) public returns(bool){
         // calculate status of voting

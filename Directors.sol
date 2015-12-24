@@ -89,7 +89,7 @@ contract Directors is Shareholders {
         return true;
     }
     
-    modifier isDirector { if (directors[msg.sender].account != 0x0 && directors[msg.sender].active != false) throw; _ }
+    modifier isDirector { if (directors[msg.sender].account == 0x0 || directors[msg.sender].active == false) throw; _ }
     modifier hasRole(bytes32 role) { if (directors[msg.sender].role == role) throw; _ }
     modifier isFounder { if (directors[msg.sender].account == Founder) throw; _ }
     modifier isDAV { if (directors[msg.sender].account == DAV) throw; _ }
