@@ -39,6 +39,8 @@ contract Voting is Bylaws, Directors {
     mapping(uint => Resolution) public resolutions;
     uint[] internal openResolutions;
     uint[] public allResolutions;
+    bool[] internal yes;
+    bool[] internal no;
     
     
     
@@ -50,6 +52,7 @@ contract Voting is Bylaws, Directors {
         resolutions[dateProposed].dateProposed = dateProposed;
         resolutions[dateProposed].proposal = proposal;
         resolutions[dateProposed].EOR = _EOR;
+        resolutions[dateProposed].result = false; // start resolutions as false; apparently this is not being set....
         resolutions[dateProposed].closed = false;
         resolutions[dateProposed].endDate = dateProposed + 2 weeks;
         
@@ -71,19 +74,29 @@ contract Voting is Bylaws, Directors {
         return (resolutions[r].proposal, resolutions[r].closed, resolutions[r].result);
     }
     
-    function vote(uint r, bool _decision) resComplete(r) isDirector public returns (bool){
-        resolutions[r].votes.push(Vote({voter: msg.sender, decision: _decision, dateVoted: now}));
-        // calculate if resolution has passed.
-        return true;
+    function hasVoted(uint r, address voter) internal returns (bool){
+        uint len = resolutions[r].votes.length;
+        for(uint i = 0; i < len; i++)
+            if(resolutions[r].votes[i].voter == voter)
+                return true;
+        return false;
     }
     
-    function CheckCount(uint r) public returns (bool){
+    function vote(uint r, bool _decision) resComplete(r) isDirector public returns (bool){
+        if(hasVoted(r, msg.sender))
+            throw;
+        else
+            resolutions[r].votes.push(Vote({voter: msg.sender, decision: _decision, dateVoted: now}));
+            return true;
+    }
+    
+    function votePassed(uint r) public returns(bool){
         uint totalVotes;
         uint yesVotes;
         uint noVotes;
         (totalVotes, yesVotes, noVotes) = countVotes(r);
-        
-        return (yesVotes > noVotes);
+        bool result = (yesVotes > noVotes);
+        return result;
     }
     
     function Resolve(uint r) public returns(bool){
@@ -92,36 +105,38 @@ contract Voting is Bylaws, Directors {
         uint yesVotes;
         uint noVotes;
         (totalVotes, yesVotes, noVotes) = countVotes(r);
+        bool result = (yesVotes > noVotes);
         
         uint totalVoters = numSubscribedVoters();
         uint percentComplete = (100 * totalVotes/totalVoters);
         
+        
         if(resolutions[r].endDate < now)
-            resolutions[r].result = (yesVotes > noVotes);
+            resolutions[r].result = result;
             resolutions[r].closed = true;
             resolutions[r].endDate = now;
             return true;
         
-        if(resolutions[r].EOR == true)
-            if( percentComplete > bylaws.EORT)
-                resolutions[r].result = (yesVotes > noVotes);
-                resolutions[r].closed = true;
-                resolutions[r].endDate = now;
-                return true;
-            return false;
-        
-        if(percentComplete > bylaws.ORT)
-            resolutions[r].result = (yesVotes > noVotes);
+        if(resolutions[r].EOR == true && percentComplete > bylaws.EORT)
+            resolutions[r].result = result;
             resolutions[r].closed = true;
             resolutions[r].endDate = now;
             return true;
+        
+        if(resolutions[r].EOR != true && percentComplete > bylaws.ORT)
+            resolutions[r].result = result;
+            resolutions[r].closed = true;
+            resolutions[r].endDate = now;
+            return true;
+        
         return false;
     }
     
     function Resolved(uint r) public returns (bool){
         if(resolutions[r].closed == true)
             return true;
-        return Resolve(r);
+        else
+            return Resolve(r);
     }
     
     function numSubscribedVoters() public returns(uint){
@@ -129,23 +144,26 @@ contract Voting is Bylaws, Directors {
             // if equal weighted, only directors get voting priveleges
             // if share weighted, shareholders get voting priveleges based on weight
             return currentDirectors.length - 1; // subtract DAV from directors;
-        return currentShareholders.length - 1; // subtract DAV from shareholders;
+        else
+            return currentShareholders.length - 1; // subtract DAV from shareholders;
     }
     
-    function voteProgress(uint r, uint _total, uint _y, uint _n) public returns (uint){
-        if(resolutions[r].EOR == false)
-            return 1;
+    
+    function totalVotes(uint r) public returns (uint){
+        return resolutions[r].votes.length;
     }
     
     function countVotes(uint r) public returns(uint total, uint y, uint n){
-        uint yes;
-        uint no;
+        // I suspect an issue here.
+        yes.length = 0;
+        no.length = 0;
         uint len = resolutions[r].votes.length;
         for(uint i = 0; i < len; i++)
             if(resolutions[r].votes[i].decision == true)
-                yes += 1;
-            no += 1;
-        return (len, yes, no);
+                yes.push(true);
+            else
+                no.push(false);
+        return (len, yes.length, no.length);
     }
     
     modifier resComplete(uint r){ if(resolutions[r].closed == true) throw; _ }
