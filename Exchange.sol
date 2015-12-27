@@ -114,8 +114,8 @@ contract Exchange is Shareholders {
         return (maxBid, minAsk);
     }
     
-    function SubmitAsk(uint _shares, uint _price) returns (bool){
-        address _seller = msg.sender;
+    function SubmitAsk(address _seller, uint _shares, uint _price) returns (bool){
+        // address _seller = msg.sender;
         if(!ValidAsk(_seller, _shares, _price))
             throw;
         if(AskInMarket(_price))

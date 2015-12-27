@@ -28,11 +28,11 @@ contract Directorate is Bylaws, Shareholders, Exchange, Directors, Voting, Vesti
     }
     
     function NewResolution(string p, bool EOR) isDirector public returns(uint){
-        return newResolution(p, EOR);
+        return newResolution(p, EOR, 0, 0, "");
     }
     
-    function issueShares(uint shares) public returns(uint Resolution){
-        return newIssuanceVote(shares);
+    function issueShares(uint shares, uint price) public returns(uint Resolution){
+        return newIssuanceVote(shares, price);
     }
     
 }

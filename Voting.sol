@@ -14,8 +14,9 @@ THE SOFTWARE.
 import "Bylaws.sol";
 import "Directors.sol";
 import "Shareholders.sol";
+import "Exchange.sol";
 
-contract Voting is Bylaws, Directors {
+contract Voting is Bylaws, Shareholders, Exchange, Directors {
     
     
     struct Vote {
@@ -34,6 +35,9 @@ contract Voting is Bylaws, Directors {
         bool EOR;
         bool result;
         bool closed;
+        bytes32 voteType;
+        uint shares;
+        uint price;
     }
     
     mapping(uint => Resolution) public resolutions;
@@ -43,12 +47,12 @@ contract Voting is Bylaws, Directors {
     uint internal no;
     
     
-    function newIssuanceVote(uint shares) ORL public returns (uint){
-        return newResolution("Issue Shares", true);
+    function newIssuanceVote(uint shares, uint price) ORL public returns (uint){
+        return newResolution("Issue Shares", true, shares, price, "Issue Shares");
         
     }
     
-    function newResolution(string proposal, bool _EOR) ORL public returns (uint){
+    function newResolution(string proposal, bool _EOR, uint _shares, uint _price, bytes32 _voteType) ORL public returns (uint){
         // if(proposal == "")
         //     throw;
         uint dateProposed = now;
@@ -56,6 +60,9 @@ contract Voting is Bylaws, Directors {
         resolutions[dateProposed].dateProposed = dateProposed;
         resolutions[dateProposed].proposal = proposal;
         resolutions[dateProposed].EOR = _EOR;
+        resolutions[dateProposed].voteType = _voteType;
+        resolutions[dateProposed].shares = _shares;
+        resolutions[dateProposed].price = _price;
         resolutions[dateProposed].result = false; // start resolutions as false; apparently this is not being set....
         resolutions[dateProposed].closed = false;
         resolutions[dateProposed].endDate = dateProposed + bylaws.resolutionPeriod;
@@ -95,9 +102,13 @@ contract Voting is Bylaws, Directors {
     function vote(uint r, bool _decision) resComplete(r) isDirector public returns (bool){
         if(hasVoted(r, msg.sender)){
             throw;
-        } else{
+        } else if(resolutions[r].voteType == "Issue Shares"){
             resolutions[r].votes.push(Vote({voter: msg.sender, decision: _decision, dateVoted: now}));
-            return true;
+            if(Resolved(r)){
+                return SubmitAsk(address(this), resolutions[r].shares, resolutions[r].price);
+            } else {
+                return true;
+            }
         }
     }
     
