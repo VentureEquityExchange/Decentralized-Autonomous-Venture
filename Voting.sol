@@ -39,12 +39,16 @@ contract Voting is Bylaws, Directors {
     mapping(uint => Resolution) public resolutions;
     uint[] internal openResolutions;
     uint[] public allResolutions;
-    bool[] internal yes;
-    bool[] internal no;
+    uint internal yes;
+    uint internal no;
     
     
+    function newIssuanceVote(uint shares) ORL public returns (uint){
+        return newResolution("Issue Shares", true);
+        
+    }
     
-    function newResolution(string proposal, bool _EOR) ORL public returns (bool){
+    function newResolution(string proposal, bool _EOR) ORL public returns (uint){
         // if(proposal == "")
         //     throw;
         uint dateProposed = now;
@@ -54,53 +58,50 @@ contract Voting is Bylaws, Directors {
         resolutions[dateProposed].EOR = _EOR;
         resolutions[dateProposed].result = false; // start resolutions as false; apparently this is not being set....
         resolutions[dateProposed].closed = false;
-        resolutions[dateProposed].endDate = dateProposed + 2 weeks;
+        resolutions[dateProposed].endDate = dateProposed + bylaws.resolutionPeriod;
         
         Resolution r = resolutions[dateProposed];
         allResolutions.push(r.dateProposed);
-        return true;
+        return dateProposed;
     }
     
     function getOpenResolutions() public returns (uint[]){
         openResolutions.length = 0;
         uint len = allResolutions.length;
-        for(uint i = 0; i < len; i++)
-            if(resolutions[allResolutions[i]].closed == false)
+        for(uint i = 0; i < len; i++){
+            if(resolutions[allResolutions[i]].closed == false){
                 openResolutions.push(allResolutions[i]);
+            }
+        }
+                
         return openResolutions;
     }
     
-    function getResolution(uint r) isOpen(r) public returns(string proposal, bool closed, bool result){
-        return (resolutions[r].proposal, resolutions[r].closed, resolutions[r].result);
+    function getResolutionResult(uint r) isOpen(r) public returns(bool result){
+        return (resolutions[r].result);
     }
     
     function hasVoted(uint r, address voter) internal returns (bool){
         uint len = resolutions[r].votes.length;
-        for(uint i = 0; i < len; i++)
-            if(resolutions[r].votes[i].voter == voter)
+        for(uint i = 0; i < len; i++){
+            if(resolutions[r].votes[i].voter == voter){
                 return true;
+            }
+        }
+        
         return false;
     }
     
     function vote(uint r, bool _decision) resComplete(r) isDirector public returns (bool){
-        if(hasVoted(r, msg.sender))
+        if(hasVoted(r, msg.sender)){
             throw;
-        else
+        } else{
             resolutions[r].votes.push(Vote({voter: msg.sender, decision: _decision, dateVoted: now}));
             return true;
+        }
     }
     
     function votePassed(uint r) public returns(bool){
-        uint totalVotes;
-        uint yesVotes;
-        uint noVotes;
-        (totalVotes, yesVotes, noVotes) = countVotes(r);
-        bool result = (yesVotes > noVotes);
-        return result;
-    }
-    
-    function Resolve(uint r) public returns(bool){
-        // calculate status of voting
         uint totalVotes;
         uint yesVotes;
         uint noVotes;
@@ -110,60 +111,77 @@ contract Voting is Bylaws, Directors {
         uint totalVoters = numSubscribedVoters();
         uint percentComplete = (100 * totalVotes/totalVoters);
         
+        if(result && percentComplete > bylaws.EORT){
+            return true;
+        } else {
+            return false;
+        }
+            
+    }
+    
+    function Resolve(uint r) public returns(bool){
+        // calculate status of voting
+        uint totalVotes;
+        uint yesVotes;
+        uint noVotes;
+        (totalVotes, yesVotes, noVotes) = countVotes(r);
         
-        if(resolutions[r].endDate < now)
+        bool result = (yesVotes > noVotes);
+        
+        uint totalVoters = numSubscribedVoters();
+        uint percentComplete = (100 * totalVotes/totalVoters);
+        
+        
+        if(resolutions[r].endDate < now) {
             resolutions[r].result = result;
             resolutions[r].closed = true;
             resolutions[r].endDate = now;
             return true;
-        
-        if(resolutions[r].EOR == true && percentComplete > bylaws.EORT)
+        } else if(resolutions[r].EOR == true && percentComplete > bylaws.EORT){
             resolutions[r].result = result;
             resolutions[r].closed = true;
             resolutions[r].endDate = now;
             return true;
-        
-        if(resolutions[r].EOR != true && percentComplete > bylaws.ORT)
+        } else if(resolutions[r].EOR != true && percentComplete > bylaws.ORT){
             resolutions[r].result = result;
             resolutions[r].closed = true;
             resolutions[r].endDate = now;
             return true;
-        
-        return false;
+        } else {
+            return false;    
+        }
     }
     
     function Resolved(uint r) public returns (bool){
-        if(resolutions[r].closed == true)
+        if(resolutions[r].closed == true){
             return true;
-        else
+        } else {
             return Resolve(r);
+        }
     }
     
     function numSubscribedVoters() public returns(uint){
-        if(bylaws.equalWeighted == true)
+        if(bylaws.equalWeighted == true){
             // if equal weighted, only directors get voting priveleges
             // if share weighted, shareholders get voting priveleges based on weight
-            return currentDirectors.length - 1; // subtract DAV from directors;
-        else
-            return currentShareholders.length - 1; // subtract DAV from shareholders;
-    }
-    
-    
-    function totalVotes(uint r) public returns (uint){
-        return resolutions[r].votes.length;
+            return getCurrentDirectors().length - 1; // subtract DAV from directors;
+        } else {
+            return getCurrentShareholders().length - 1; // subtract DAV from shareholders;
+        }
     }
     
     function countVotes(uint r) public returns(uint total, uint y, uint n){
         // I suspect an issue here.
-        yes.length = 0;
-        no.length = 0;
+        yes = 0;
+        no = 0;
         uint len = resolutions[r].votes.length;
         for(uint i = 0; i < len; i++)
-            if(resolutions[r].votes[i].decision == true)
-                yes.push(true);
-            else
-                no.push(false);
-        return (len, yes.length, no.length);
+            if(resolutions[r].votes[i].decision == true){
+                yes += 1;
+            } else {
+                no += 1;
+            }
+        return (len, yes, no);
     }
     
     modifier resComplete(uint r){ if(resolutions[r].closed == true) throw; _ }

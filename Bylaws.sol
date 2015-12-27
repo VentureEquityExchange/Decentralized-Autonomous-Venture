@@ -49,6 +49,7 @@ contract Bylaws {
         uint EORT;
         uint ORL;
         bool equalWeighted; // default is true; false == shareWeighted;
+        uint resolutionPeriod;
     }
     
     ByLawsConfig public bylaws;
@@ -58,6 +59,7 @@ contract Bylaws {
         bylaws.EORT = (100 * 90/100); // 90%
         bylaws.ORL = 5;
         bylaws.equalWeighted = true;
+        bylaws.resolutionPeriod = 2 weeks;
     }
     
     function setORT(uint percentage) internal returns (bool){
@@ -77,6 +79,11 @@ contract Bylaws {
     
     function setORL(uint limit) internal returns (bool){
         bylaws.ORL = limit;
+        return true;
+    }
+    
+    function setRP(uint period) internal returns (bool){
+        bylaws.resolutionPeriod = period;
         return true;
     }
     
