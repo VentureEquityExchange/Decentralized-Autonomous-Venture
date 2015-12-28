@@ -71,7 +71,7 @@ contract Ex is Shareholders {
         }
     }
     
-    function NewAsk(uint _shares, uint _price) public returns(bool){
+    function NewAsk(uint _shares, uint _price) internal returns(bool){
         uint dated = now;
         for(uint i = 0; i < Asks.length; i++){
             if(Asks[i].seller == 0x0){
@@ -159,14 +159,21 @@ contract Ex is Shareholders {
     
     function ExecuteAsk(address Seller, uint Shares, uint Price, Bid[] MatchingBids, uint WtdBidPrice) internal returns (bool){
         uint confirmations = 0;
-        // uint returnValue = orderValue;
+        uint returnValue = 0; 
+        
         for(uint i = 0; i < MatchingBids.length; i++){
             if(SettleAsk(Seller, Shares, MatchingBids[i], WtdBidPrice)){
-                // if(Shares >= MatchingAsks[i].shares){
-                //     returnValue -= (MatchingAsks[i].shares*WtdAskPrice);    
-                // } else {
-                //     returnValue -= (Shares*WtdAskPrice);
-                // }
+                        
+                //  Calculate Total Buyer Return => Cost savings of weighted bid;
+                
+                if(Shares >= MatchingBids[i].shares){
+                    returnValue += (MatchingBids[i].shares*MatchingBids[i].price) - (MatchingBids[i].shares*WtdBidPrice);
+                } else {
+                    returnValue += (Shares*MatchingBids[i].price) - (Shares*WtdBidPrice);
+                }
+                
+                //
+                
                 if(Shares > MatchingBids[i].shares){
                     Shares -= MatchingBids[i].shares;    
                 } else {
@@ -175,10 +182,10 @@ contract Ex is Shareholders {
                 
                 confirmations += 1;
                 if(confirmations == MatchingBids.length && Shares == 0){
-                    // MatchingBids[i].buyer.send(returnValue); // return unspent funds to 
+                    MatchingBids[i].buyer.send(returnValue); // return unspent funds to 
                     return true;
                 } else if(confirmations == MatchingBids.length && Shares > 0 ){
-                    // Buyer.send((returnValue - (Shares*Price)));
+                    MatchingBids[i].buyer.send(returnValue);
                     return NewAsk(Shares, Price);
                 }
             }
@@ -227,11 +234,14 @@ contract Ex is Shareholders {
     function SubmitBid(uint _price) returns (bool){
         uint orderValue = msg.value;
         uint _shares = orderValue/_price;
-        if(!ValidBid(msg.sender, _shares, _price)){
+        address _buyer = msg.sender;
+        if(!ValidBid(_buyer, _shares, _price)){
             throw;
         } else if(BidMatches(_shares, _price).length > 0){
-            return ExecuteBid(orderValue, msg.sender, _shares, _price, BidMatches(_shares, _price), WtdAskPrice(_price));
+            return ExecuteBid(orderValue, _buyer, _shares, _price, BidMatches(_shares, _price), WtdAskPrice(_price));
         } else {
+            // 25000 - 24991 => overpaid for inventory; return 9.
+            _buyer.send((orderValue - _shares*_price)); 
             return NewBid(_shares, _price);
         }
     }
