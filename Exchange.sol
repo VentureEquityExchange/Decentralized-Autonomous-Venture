@@ -91,15 +91,35 @@ contract Exchange is Shareholders {
     
     function NewAsk(address _seller, uint _shares, uint _price) internal returns (bool){
         uint dated = now;
-        Asks.push(Ask({seller : _seller, shares : _shares, price : _price, date: dated}));
+        // reuse empty Asks arrays
+        for(uint i = 0; i < Asks.length; i++){
+            if(Asks[i].seller == 0x0){
+                Asks[i].seller = _seller;
+                Asks[i].shares = _shares;
+                Asks[i].price = _price;
+                Asks[i].date = dated;
+                return true;
+            }
+        }
         
+        Asks.push(Ask({seller : _seller, shares : _shares, price : _price, date: dated}));
         return true;
     }
     
     function NewBid(address _buyer, uint _shares, uint _price) internal returns (bool){
         uint dated = now;
-        Bids.push(Bid({buyer : _buyer, shares : _shares, price : _price, date: dated}));
+        // Reuse empty Bids Array
+        for(uint i = 0; i < Bids.length; i++){
+            if(Bids[i].buyer == 0x0){
+                Bids[i].buyer = _buyer;
+                Bids[i].shares = _shares;
+                Bids[i].price = _price;
+                Bids[i].date = dated;
+                return true;
+            }
+        }
         
+        Bids.push(Bid({buyer : _buyer, shares : _shares, price : _price, date: dated}));
         return true;
     }
     
@@ -124,6 +144,7 @@ contract Exchange is Shareholders {
         return NewAsk(_seller, _shares, _price);
         
     }
+    
     
     function SubmitBid(uint _price) returns (bool){
         address _buyer = msg.sender;
@@ -224,6 +245,7 @@ contract Exchange is Shareholders {
         return bidMatches;
     }
     
+    
     function BestBid(uint[] _matchingBids) internal returns (address, uint, uint, uint){
         uint bestBid;
         bidQuantities.length = 0;
@@ -234,6 +256,8 @@ contract Exchange is Shareholders {
             if(Bids[_matchingBids[j]].shares == bestBid)
                 return(Bids[_matchingBids[j]].buyer, Bids[_matchingBids[j]].shares, Bids[_matchingBids[j]].price, Bids[_matchingBids[j]].date);
     }
+    
+    // function BatchBids(Ask _ask, Bid[] _bids) internal returns(bool){...}
     
     function sort(uint[] arr) internal returns (uint[]) {
       uint minIdx; 
@@ -277,7 +301,10 @@ contract Exchange is Shareholders {
         if(BidRemainder == 0)
             return true;
         
+        
         return NewBid(_buyer, BidRemainder, bidPrice);
+        
+        
     }
     
     function ClearBid(uint orderValue, address _buyer, uint buyerShares, uint bidPrice, address _seller, uint sellerShares, uint askPrice, uint askDate) internal returns (bool){
