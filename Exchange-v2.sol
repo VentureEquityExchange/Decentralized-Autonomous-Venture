@@ -298,7 +298,7 @@ contract Ex is Shareholders {
         } else if(BidMatches(_shares, _price).length > 0){
             return ExecuteBid(orderValue, _buyer, _shares, _price, BidMatches(_shares, _price));
         } else {
-            // 25000 - 24991 => overpaid for inventory; return 9.
+            // return remainder values (due to rounding limitations);
             _buyer.send((orderValue - _shares*_price)); 
             return NewBid(_shares, _price);
         }
@@ -325,38 +325,6 @@ contract Ex is Shareholders {
         
         return totalSupply;
     }
-    
-    // function AskMatches(uint _shares, uint _AskPrice) internal returns(Bid[]){
-    //     BidPrices.length = 0;
-    //     BatchedBids.length = 0;
-        
-    //     mapping(uint => Bid[]) MatchBids;
-        
-    //     if(Bids.length == 0){
-    //         return BatchedBids;
-    //     }
-        
-    //     for(uint i = 0; i < Bids.length; i++){
-    //         if(Bids[i].price >= _AskPrice){
-    //             BidPrices.push(Bids[i].price);
-    //             MatchBids[Bids[i].price].push(Bids[i]);
-    //         }
-    //     }
-        
-    //     for(uint j = sort(BidPrices).length - 1; j >= 0; j--){
-    //         if(_shares >= 0){
-    //           for(uint k = 0; k < MatchBids[sort(BidPrices)[j]].length; k++){
-    //                 _shares -= MatchBids[sort(BidPrices)[j]][k].shares;
-    //                 BatchedBids.push(MatchBids[sort(BidPrices)[j]][k]);
-    //                 if(j == 0){
-    //                     return BatchedBids;
-    //                 }
-    //             }
-    //         }
-    //     }
-        
-    //     return BatchedBids;
-    // }
     
     function BidMatches(uint _shares, uint _BidPrice) internal returns(Ask[]){
         AskPrices.length = 0;
@@ -420,7 +388,7 @@ contract Ex is Shareholders {
             shareholders[Buyer].sharesHeld += Shares;
             shareholders[Buyer].sells.push(SaleOrder({price : SettlementPrice, shares : Shares, date : date}));
             
-            // Return true
+            // Amend Ask Shares && return true
             for(uint j = 0; j < Asks.length; j++){
                 if(Asks[j].seller == MatchingAsk.seller && Asks[j].date == MatchingAsk.date){
                     Asks[j].shares -= Shares;
@@ -445,7 +413,7 @@ contract Ex is Shareholders {
                 }
                 
                 if(Shares > MatchingAsks[i].shares){
-                    Shares -= MatchingAsks[i].shares;    
+                    Shares -= MatchingAsks[i].shares;
                 } else {
                     Shares = 0;
                 }
