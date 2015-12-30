@@ -29,6 +29,23 @@ contract Shareholders {
         shareholders[Alice].account = Alice;
         shareholders[Alice].sharesHeld = internalShares;
     }
+    
+    function LowestBid(address shareholder) public returns(uint){
+        uint len = shareholders[shareholder].buys.length;
+        uint min = 0;
+        uint count = 0;
+        for(uint i = 0; i < len; i++){
+            uint price = shareholders[shareholder].buys[i].price;
+            if(min > price || min == 0){
+                min = price;    
+            }
+            
+            if(count == len){
+                return min;
+            }
+            
+        }
+    }
 }
 
 contract Ex is Shareholders {
@@ -70,7 +87,7 @@ contract Ex is Shareholders {
     
     function SubmitAsk(uint _shares, uint _price) returns (bool){
         if(!ValidAsk(msg.sender, _shares, _price)){
-            return false;
+            throw;
         } else if(AskMatches(_shares, _price).length > 0){
             return ExecuteAsk(msg.sender, _shares, _price, AskMatches(_shares, _price));
         } else {
