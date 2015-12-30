@@ -37,9 +37,10 @@ contract Shareholders {
         for(uint i = 0; i < len; i++){
             uint price = shareholders[shareholder].buys[i].price;
             if(min > price || min == 0){
-                min = price;    
+                min = price;
             }
             
+            count += 1;
             if(count == len){
                 return min;
             }
@@ -136,7 +137,7 @@ contract Ex is Shareholders {
                for(uint k = 0; k < MatchBids[sort(BidPrices)[j]].length; k++){
                     _shares -= MatchBids[sort(BidPrices)[j]][k].shares;
                     BatchedBids.push(MatchBids[sort(BidPrices)[j]][k]);
-                    if(_shares <= 0){
+                    if(j == 0){
                         return BatchedBids;
                     }
                 }
@@ -325,28 +326,63 @@ contract Ex is Shareholders {
         return totalSupply;
     }
     
+    // function AskMatches(uint _shares, uint _AskPrice) internal returns(Bid[]){
+    //     BidPrices.length = 0;
+    //     BatchedBids.length = 0;
+        
+    //     mapping(uint => Bid[]) MatchBids;
+        
+    //     if(Bids.length == 0){
+    //         return BatchedBids;
+    //     }
+        
+    //     for(uint i = 0; i < Bids.length; i++){
+    //         if(Bids[i].price >= _AskPrice){
+    //             BidPrices.push(Bids[i].price);
+    //             MatchBids[Bids[i].price].push(Bids[i]);
+    //         }
+    //     }
+        
+    //     for(uint j = sort(BidPrices).length - 1; j >= 0; j--){
+    //         if(_shares >= 0){
+    //           for(uint k = 0; k < MatchBids[sort(BidPrices)[j]].length; k++){
+    //                 _shares -= MatchBids[sort(BidPrices)[j]][k].shares;
+    //                 BatchedBids.push(MatchBids[sort(BidPrices)[j]][k]);
+    //                 if(j == 0){
+    //                     return BatchedBids;
+    //                 }
+    //             }
+    //         }
+    //     }
+        
+    //     return BatchedBids;
+    // }
+    
     function BidMatches(uint _shares, uint _BidPrice) internal returns(Ask[]){
         AskPrices.length = 0;
         BatchedAsks.length = 0;
         
-        mapping(uint => Ask) MatchAsks;
+        mapping(uint => Ask[]) MatchAsks;
         
         for(uint i = 0; i < Asks.length; i++){
             if(Asks[i].price <= _BidPrice){
                 AskPrices.push(Asks[i].price);
-                MatchAsks[Asks[i].price] = Asks[i];
+                MatchAsks[Asks[i].price].push(Asks[i]);
             }
         }
         
         for(uint j = 0; j < sort(AskPrices).length; j++){
             if(_shares >= 0){
-                _shares -= MatchAsks[sort(AskPrices)[j]].shares;
-                BatchedAsks.push(MatchAsks[sort(AskPrices)[j]]);
-                if(_shares == 0){
-                    return BatchedAsks;
+                for(uint k = 0; k < MatchAsks[sort(AskPrices)[j]].length; k++){
+                    _shares -= MatchAsks[sort(AskPrices)[j]][k].shares;
+                    BatchedAsks.push(MatchAsks[sort(AskPrices)[j]][k]);
+                    if(j == 0){
+                        return BatchedAsks;
+                    }
                 }
             }
-        }        
+        }
+        
         
         return BatchedAsks;
     }
