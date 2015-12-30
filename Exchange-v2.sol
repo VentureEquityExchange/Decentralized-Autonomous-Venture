@@ -1,5 +1,11 @@
 contract Shareholders {
-    struct PurchasePrice {
+    struct PurchaseOrder {
+        uint price;
+        uint shares;
+        uint date;
+    }
+    
+    struct SaleOrder {
         uint price;
         uint shares;
         uint date;
@@ -8,8 +14,10 @@ contract Shareholders {
     struct Shareholder {
         address account;
         uint sharesHeld;
-        PurchasePrice[] prices;
+        PurchaseOrder[] buys;
+        SaleOrder[] sells;
     }
+    
     
     mapping(address => Shareholder) public shareholders;
     
@@ -44,8 +52,8 @@ contract Ex is Shareholders {
     Bid[] internal BatchedBids;
     Ask[] internal BatchedAsks;
     
-    uint[] internal OldestBids;
-    uint[] internal OldestAsks;
+    uint[] internal BidPrices;
+    uint[] internal AskPrices;
     
     
     /*
@@ -62,9 +70,9 @@ contract Ex is Shareholders {
     
     function SubmitAsk(uint _shares, uint _price) returns (bool){
         if(!ValidAsk(msg.sender, _shares, _price)){
-            throw;
+            return false;
         } else if(AskMatches(_shares, _price).length > 0){
-            return ExecuteAsk(msg.sender, _shares, _price, AskMatches(_shares, _price), WtdBidPrice(_price));
+            return ExecuteAsk(msg.sender, _shares, _price, AskMatches(_shares, _price));
         } else {
             // return false;
             return NewAsk(_shares, _price);
@@ -73,39 +81,47 @@ contract Ex is Shareholders {
     
     function NewAsk(uint _shares, uint _price) internal returns(bool){
         uint dated = now;
-        for(uint i = 0; i < Asks.length; i++){
-            if(Asks[i].seller == 0x0){
-                Asks[i].seller = msg.sender;
-                Asks[i].shares = _shares;
-                Asks[i].price = _price;
-                Asks[i].date = dated;
-                return true;
-            }
+        if(Asks.length > 0){
+            for(uint i = 0; i < Asks.length; i++){
+                if(Asks[i].seller == 0x0){
+                    Asks[i].seller = msg.sender;
+                    Asks[i].shares = _shares;
+                    Asks[i].price = _price;
+                    Asks[i].date = dated;
+                    return true;
+                }
+            }    
+        } else {
+            Asks.push(Ask({seller : msg.sender, shares : _shares, price : _price, date : dated}));
+            return true;
         }
-        Asks.push(Ask({seller : msg.sender, shares : _shares, price : _price, date : dated}));
-        return true;
     }
     
     function AskMatches(uint _shares, uint _AskPrice) internal returns(Bid[]){
-        OldestBids.length = 0;
+        BidPrices.length = 0;
         BatchedBids.length = 0;
         
-        mapping(uint => Bid) MatchBids;
+        mapping(uint => Bid[]) MatchBids;
+        
+        if(Bids.length == 0){
+            return BatchedBids;
+        }
         
         for(uint i = 0; i < Bids.length; i++){
             if(Bids[i].price >= _AskPrice){
-                OldestBids.push(Bids[i].date);
-                MatchBids[Bids[i].date] = Bids[i];
+                BidPrices.push(Bids[i].price);
+                MatchBids[Bids[i].price].push(Bids[i]);
             }
         }
         
-        
-        for(uint j = 0; j < sort(OldestBids).length; j++){
+        for(uint j = sort(BidPrices).length - 1; j >= 0; j--){
             if(_shares >= 0){
-                _shares -= MatchBids[sort(OldestBids)[j]].shares;
-                BatchedBids.push(MatchBids[sort(OldestBids)[j]]);
-                if(_shares == 0){
-                    return BatchedBids;
+               for(uint k = 0; k < MatchBids[sort(BidPrices)[j]].length; k++){
+                    _shares -= MatchBids[sort(BidPrices)[j]][k].shares;
+                    BatchedBids.push(MatchBids[sort(BidPrices)[j]][k]);
+                    if(_shares <= 0){
+                        return BatchedBids;
+                    }
                 }
             }
         }
@@ -113,19 +129,22 @@ contract Ex is Shareholders {
         return BatchedBids;
     }
     
-    function SettleAsk(address Seller, uint Shares, Bid MatchingBid, uint WtdBidPrice) internal returns (bool){
-        
+    function SettleAsk(address Seller, uint Shares, Bid MatchingBid, uint SettlementPrice) internal returns (bool){
+        uint date = now;
         if(Shares >= MatchingBid.shares){
             // Pay Seller
-            Seller.send(MatchingBid.shares*WtdBidPrice);
+            Seller.send(MatchingBid.shares*SettlementPrice);
             
             // Transfer Shares
             shareholders[Seller].sharesHeld -= MatchingBid.shares;
             if(shareholders[MatchingBid.buyer].account == 0x0)
                 shareholders[MatchingBid.buyer].account = MatchingBid.buyer;
-        
+            
+            // Update Shareholder Order History
+            
             shareholders[MatchingBid.buyer].sharesHeld += MatchingBid.shares;
-            shareholders[MatchingBid.buyer].prices.push(PurchasePrice({price : WtdBidPrice, shares : MatchingBid.shares, date : now}));
+            shareholders[MatchingBid.buyer].buys.push(PurchaseOrder({price : SettlementPrice, shares : MatchingBid.shares, date : date}));
+            
             
             // Remove Bid
             for(uint i = 0; i < Bids.length; i++){
@@ -136,7 +155,8 @@ contract Ex is Shareholders {
             }
         } else {
             // Pay Seller
-            Seller.send(Shares*WtdBidPrice);
+            Seller.send(Shares*SettlementPrice);
+            
             
             // Transfer Shares
             shareholders[Seller].sharesHeld -= Shares;
@@ -144,10 +164,9 @@ contract Ex is Shareholders {
                 shareholders[MatchingBid.buyer].account = MatchingBid.buyer;
         
             shareholders[MatchingBid.buyer].sharesHeld += Shares;
-            shareholders[MatchingBid.buyer].prices.push(PurchasePrice({price : WtdBidPrice, shares : Shares, date : now}));
+            shareholders[MatchingBid.buyer].buys.push(PurchaseOrder({price : SettlementPrice, shares : Shares, date : date}));
             
             // Return true
-            // return true;
             for(uint j = 0; j < Bids.length; j++){
                 if(Bids[j].buyer == MatchingBid.buyer && Bids[j].date == MatchingBid.date){
                     Bids[j].shares -= Shares;
@@ -157,22 +176,26 @@ contract Ex is Shareholders {
         }
     }
     
-    function ExecuteAsk(address Seller, uint Shares, uint Price, Bid[] MatchingBids, uint WtdBidPrice) internal returns (bool){
+    function ExecuteAsk(address Seller, uint Shares, uint Price, Bid[] MatchingBids) internal returns (bool){
         uint confirmations = 0;
-        uint returnValue = 0; 
         
         for(uint i = 0; i < MatchingBids.length; i++){
-            if(SettleAsk(Seller, Shares, MatchingBids[i], WtdBidPrice)){
+            uint SettlementPrice = ((Price+MatchingBids[i].price)/2);
+            if(SettleAsk(Seller, Shares, MatchingBids[i], SettlementPrice)){
                         
-                //  Calculate Total Buyer Return => Cost savings of weighted bid;
+                //  Calculate Total Buyer Return => Cost savings of profit sharing.
                 
+                
+                uint returnValue = 0;
                 if(Shares >= MatchingBids[i].shares){
-                    returnValue += (MatchingBids[i].shares*MatchingBids[i].price) - (MatchingBids[i].shares*WtdBidPrice);
+                    returnValue = ((MatchingBids[i].shares)*(MatchingBids[i].price-SettlementPrice));
+                    MatchingBids[i].buyer.send(returnValue);
                 } else {
-                    returnValue += (Shares*MatchingBids[i].price) - (Shares*WtdBidPrice);
+                    returnValue = ((Shares)*(MatchingBids[i].price-SettlementPrice));
+                    MatchingBids[i].buyer.send(returnValue);
                 }
                 
-                //
+                
                 
                 if(Shares > MatchingBids[i].shares){
                     Shares -= MatchingBids[i].shares;    
@@ -182,10 +205,8 @@ contract Ex is Shareholders {
                 
                 confirmations += 1;
                 if(confirmations == MatchingBids.length && Shares == 0){
-                    MatchingBids[i].buyer.send(returnValue); // return unspent funds to 
                     return true;
                 } else if(confirmations == MatchingBids.length && Shares > 0 ){
-                    MatchingBids[i].buyer.send(returnValue);
                     return NewAsk(Shares, Price);
                 }
             }
@@ -231,6 +252,25 @@ contract Ex is Shareholders {
         return true;
     }
     
+    function NewBid(uint _shares, uint _price) internal returns(bool){
+         uint dated = now;
+        // Reuse empty Bids Array
+        if(Bids.length > 0){
+            for(uint i = 0; i < Bids.length; i++){
+                if(Bids[i].buyer == 0x0){
+                    Bids[i].buyer = msg.sender;
+                    Bids[i].shares = _shares;
+                    Bids[i].price = _price;
+                    Bids[i].date = dated;
+                    return true;
+                }
+            }    
+        } else {
+            Bids.push(Bid({buyer : msg.sender, shares : _shares, price : _price, date : dated}));
+            return true;    
+        }
+    }
+    
     function SubmitBid(uint _price) returns (bool){
         uint orderValue = msg.value;
         uint _shares = orderValue/_price;
@@ -238,7 +278,7 @@ contract Ex is Shareholders {
         if(!ValidBid(_buyer, _shares, _price)){
             throw;
         } else if(BidMatches(_shares, _price).length > 0){
-            return ExecuteBid(orderValue, _buyer, _shares, _price, BidMatches(_shares, _price), WtdAskPrice(_price));
+            return ExecuteBid(orderValue, _buyer, _shares, _price, BidMatches(_shares, _price));
         } else {
             // 25000 - 24991 => overpaid for inventory; return 9.
             _buyer.send((orderValue - _shares*_price)); 
@@ -269,37 +309,36 @@ contract Ex is Shareholders {
     }
     
     function BidMatches(uint _shares, uint _BidPrice) internal returns(Ask[]){
-        OldestAsks.length = 0;
+        AskPrices.length = 0;
         BatchedAsks.length = 0;
         
         mapping(uint => Ask) MatchAsks;
         
         for(uint i = 0; i < Asks.length; i++){
             if(Asks[i].price <= _BidPrice){
-                OldestAsks.push(Asks[i].date);
-                MatchAsks[Asks[i].date] = Asks[i];
+                AskPrices.push(Asks[i].price);
+                MatchAsks[Asks[i].price] = Asks[i];
             }
         }
         
-        
-        for(uint j = 0; j < sort(OldestAsks).length; j++){
+        for(uint j = 0; j < sort(AskPrices).length; j++){
             if(_shares >= 0){
-                _shares -= MatchAsks[sort(OldestAsks)[j]].shares;
-                BatchedAsks.push(MatchAsks[sort(OldestAsks)[j]]);
+                _shares -= MatchAsks[sort(AskPrices)[j]].shares;
+                BatchedAsks.push(MatchAsks[sort(AskPrices)[j]]);
                 if(_shares == 0){
                     return BatchedAsks;
                 }
             }
-        }
+        }        
         
         return BatchedAsks;
     }
     
-    function SettleBid(address Buyer, uint Shares, Ask MatchingAsk, uint WtdAskPrice) internal returns (bool){
-        
+    function SettleBid(address Buyer, uint Shares, Ask MatchingAsk, uint SettlementPrice) internal returns (bool){
+        uint date = now;
         if(Shares >= MatchingAsk.shares){
             // Pay Seller
-            MatchingAsk.seller.send(MatchingAsk.shares*WtdAskPrice);
+            MatchingAsk.seller.send(MatchingAsk.shares*SettlementPrice);
             
             // Transfer Shares
             shareholders[MatchingAsk.seller].sharesHeld -= MatchingAsk.shares;
@@ -307,7 +346,7 @@ contract Ex is Shareholders {
                 shareholders[Buyer].account = Buyer;
         
             shareholders[Buyer].sharesHeld += MatchingAsk.shares;
-            shareholders[Buyer].prices.push(PurchasePrice({price : WtdAskPrice, shares : MatchingAsk.shares, date : now}));
+            shareholders[Buyer].sells.push(SaleOrder({price : SettlementPrice, shares : MatchingAsk.shares, date : date}));
             
             // Remove Ask
             for(uint i = 0; i < Asks.length; i++){
@@ -318,7 +357,7 @@ contract Ex is Shareholders {
             }
         } else {
             // Pay Seller
-            MatchingAsk.seller.send(Shares*WtdAskPrice);
+            MatchingAsk.seller.send(Shares*SettlementPrice);
             
             // Transfer Shares
             shareholders[MatchingAsk.seller].sharesHeld -= Shares;
@@ -326,10 +365,9 @@ contract Ex is Shareholders {
                 shareholders[Buyer].account = Buyer;
         
             shareholders[Buyer].sharesHeld += Shares;
-            shareholders[Buyer].prices.push(PurchasePrice({price : WtdAskPrice, shares : Shares, date : now}));
+            shareholders[Buyer].sells.push(SaleOrder({price : SettlementPrice, shares : Shares, date : date}));
             
             // Return true
-            // return true;
             for(uint j = 0; j < Asks.length; j++){
                 if(Asks[j].seller == MatchingAsk.seller && Asks[j].date == MatchingAsk.date){
                     Asks[j].shares -= Shares;
@@ -339,15 +377,18 @@ contract Ex is Shareholders {
         }
     }
     
-    function ExecuteBid(uint orderValue, address Buyer, uint Shares, uint Price, Ask[] MatchingAsks, uint WtdAskPrice) internal returns (bool){
+    function ExecuteBid(uint orderValue, address Buyer, uint Shares, uint Price, Ask[] MatchingAsks) internal returns (bool){
         uint confirmations = 0;
         uint returnValue = orderValue;
+        uint SettlementPrice = 0;
         for(uint i = 0; i < MatchingAsks.length; i++){
-            if(SettleBid(Buyer, Shares, MatchingAsks[i], WtdAskPrice)){
+            SettlementPrice = ((Price+MatchingAsks[i].price)/2);
+            if(SettleBid(Buyer, Shares, MatchingAsks[i], SettlementPrice)){
+                
                 if(Shares >= MatchingAsks[i].shares){
-                    returnValue -= (MatchingAsks[i].shares*WtdAskPrice);    
+                    returnValue -= (MatchingAsks[i].shares*SettlementPrice);    
                 } else {
-                    returnValue -= (Shares*WtdAskPrice);
+                    returnValue -= (Shares*SettlementPrice);
                 }
                 
                 if(Shares > MatchingAsks[i].shares){
@@ -369,23 +410,6 @@ contract Ex is Shareholders {
         }
         
         return false;
-    }
-    
-    function NewBid(uint _shares, uint _price) internal returns(bool){
-         uint dated = now;
-        // Reuse empty Bids Array
-        for(uint i = 0; i < Bids.length; i++){
-            if(Bids[i].buyer == 0x0){
-                Bids[i].buyer = msg.sender;
-                Bids[i].shares = _shares;
-                Bids[i].price = _price;
-                Bids[i].date = dated;
-                return true;
-            }
-        }
-        
-        Bids.push(Bid({buyer : msg.sender, shares : _shares, price : _price, date : dated}));
-        return true;
     }
     
     
